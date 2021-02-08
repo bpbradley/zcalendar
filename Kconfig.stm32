@@ -1,0 +1,16 @@
+# Copyright (c) 2020 Brian Bradley
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig STM32_RTC_CALENDAR
+	bool "STM32 RTC based calendar API implementation"
+	depends on SOC_FAMILY_STM32
+	select USE_STM32_LL_RTC
+	select USE_STM32_LL_PWR
+	select USE_STM32_LL_RCC
+	select USE_STM32_LL_EXTI
+	select REQUIRES_FULL_LIBC
+	help
+	  Enable driver for stm32 rtc time api
+
+config RESET_BACKUP_DOMAIN
+	bool "Optionally force a reset of the backup domain on init"

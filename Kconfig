@@ -1,0 +1,24 @@
+# Copyright (c) 2020 Brian Bradley
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig CALENDAR
+	bool "Enable the calendar API"
+	help
+	  Enable calendar api
+
+if CALENDAR
+
+module = CALENDAR
+module-str = calendar
+source "subsys/logging/Kconfig.template.log_config"
+
+config CALENDAR_INIT_TIME_UNIX_TIMESTAMP
+	int "Set the initialization time as a unix timestamp"
+	range 946684800 4070908800
+	default 946684800
+	help
+		The time is stored as a unix timestamp (seconds from epoch)
+		where epoch is January 1 1970
+
+rsource "Kconfig.stm32"
+endif

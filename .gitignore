@@ -1,0 +1,15 @@
+# Don't include Zephyr files
+.west
+
+# Don't include generated build data
+*build/
+
+# Don't include IDE files
+*.vscode*
+
+# Don't include OS files
+[Tt]humbs.db
+*.DS_Store
+
+# Don't inlclude the unit test output
+*sanity*/
