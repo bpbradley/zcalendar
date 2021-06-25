@@ -1,4 +1,5 @@
 # zcalendar
+
 Calendar API for Zephyr RTOS.
 
 ## Features
@@ -9,11 +10,12 @@ Calendar API for Zephyr RTOS.
 
 ## Supported Backends
 
-Currently, only battery backed STM32 RTC is available as a supported backend. It can be used without battery backup, but the calendar time will be reset whenever power is lost.
+* STM32 RTC
+* Maxim DS3231
 
 ## Configuration
 
-zcalendar is fully compatible with the west build system, and is designed to be easily integrated into any Zephyr project through the project's west manifest. It is configured through the project conf file.
+zcalendar is fully compatible with the west build system, and is designed to be easily integrated into any Zephyr project through the project's west manifest. It is configured through the project conf file, and depending on the backend, it may also need to be configured with the device tree.
 
 ### Kconfig
 
@@ -30,6 +32,44 @@ CONFIG_STM32_RTC_CALENDAR=y
 ```
 
 Refer to the Kconfig files to learn about optional configurations which can be used as well.
+
+### Device Tree
+
+The Maxim DS3231 backend leverages the existing driver implementation in the counter API. In this case,
+you must select the appropriate device in the device tree for zcal to use internally. This can be done
+using the included device tree bindings
+
+```dts
+&i2c0 {
+  calendar_rtc: ds3231@68 {
+    compatible = "maxim,ds3231";
+    reg = <0x68>;
+    label = "DS3231";
+    isw-gpios = <&gpio0 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+  };
+};
+
+/ {
+  calendar{
+    compatible = "calendar";
+    label = "CALENDAR";
+    rtc = <&calendar_rtc>;
+  };
+};
+```
+
+Or by using a chosen node
+
+```dts
+/ {
+  chosen{
+    zcal,rtc = &calendar_rtc;
+  }
+}
+```
+
+The STM32 implementation is independent of the counter API and so does not need a handle to that device to work.
+As a result, it does not need any device tree configuration.
 
 ### Using West
 
@@ -66,7 +106,7 @@ int main(){
 
     /* Get the device handle */
     const struct device * calendar = \
-        device_get_binding(DT_LABEL(DT_INST(0, st_stm32_rtc)));
+        device_get_binding(DT_LABEL(DT_INST(0, calendar)));
 
     if (calendar){
             /* Set the calendar time by epoch */

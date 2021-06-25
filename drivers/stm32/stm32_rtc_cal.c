@@ -19,7 +19,7 @@
 #include <zcal/calendar.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(stm32rtc, CONFIG_CALENDAR_LOG_LEVEL);
+LOG_MODULE_REGISTER(calendar, CONFIG_CALENDAR_LOG_LEVEL);
 
 // prescaler values for LSE @ 32768 Hz
 #define RTC_PREDIV_ASYNC 0x7F

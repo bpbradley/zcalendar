@@ -21,4 +21,5 @@ config CALENDAR_INIT_TIME_UNIX_TIMESTAMP
 		where epoch is January 1 1970
 
 rsource "Kconfig.stm32"
+rsource "Kconfig.ds3231"
 endif

@@ -1,0 +1,9 @@
+# Copyright (c) 2020 Brian Bradley
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig DS3231_RTC_CALENDAR
+	bool "Maxim DS3231 RTC based calendar API implementation"
+	select COUNTER
+	select COUNTER_MAXIM_DS3231
+	help
+	  Enable driver for Maxim DS3231 rtc time api
