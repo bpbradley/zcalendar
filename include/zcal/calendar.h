@@ -25,7 +25,6 @@ extern "C" {
 typedef int (*calendar_api_settime)(const struct device * dev, struct tm * tm);
 typedef int (*calendar_api_gettime)(const struct device * dev, struct tm * tm);
 
-
 __subsystem struct calendar_driver_api {
     calendar_api_settime settime;
     calendar_api_gettime gettime;
@@ -50,7 +49,6 @@ static inline int z_impl_calendar_gettime(const struct device *dev, struct tm *t
 
 	return api->gettime(dev, tm);
 }
-
 
 /**
  * @brief Function for setting the current calendar time to be recorded by the

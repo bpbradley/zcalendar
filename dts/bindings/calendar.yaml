@@ -1,0 +1,12 @@
+compatible: "calendar"
+
+include: base.yaml
+
+description: Device tree bindings for calendar API
+
+properties:
+  rtc:
+    type: phandle
+    required: true
+    description: The handle of the underlying device used to store time
+  
