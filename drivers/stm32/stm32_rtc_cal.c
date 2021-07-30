@@ -177,7 +177,7 @@ static const struct calendar_driver_api stm32_calendar_api = {
 	.gettime = stm32_calendar_gettime,
 };
 
-DEVICE_DT_INST_DEFINE(0, stm32_rtc_initilize, device_pm_control_nop,
+DEVICE_DT_INST_DEFINE(0, stm32_rtc_initilize, NULL,
 	NULL, NULL,
 	POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
 	&stm32_calendar_api
