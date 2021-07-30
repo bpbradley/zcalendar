@@ -128,7 +128,7 @@ static const struct calendar_driver_api ds3231_calendar_api = {
 
 struct ds3231_config ds3231_config = {NULL};
 
-DEVICE_DT_INST_DEFINE(0, ds3231_rtc_initilize, device_pm_control_nop,
+DEVICE_DT_INST_DEFINE(0, ds3231_rtc_initilize, NULL,
 	NULL, &ds3231_config,
 	POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY,
 	&ds3231_calendar_api
