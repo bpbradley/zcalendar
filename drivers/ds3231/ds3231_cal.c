@@ -48,13 +48,12 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 	if (!rtc){
 		return -ENODEV;
 	}
-	uint32_t syncclock_Hz = maxim_ds3231_syncclock_frequency(rtc);
 	uint32_t syncclock = maxim_ds3231_read_syncclock(rtc);
 	time_t tv_sec = mktime(tm);
 	struct maxim_ds3231_syncpoint sp = {
 		.rtc = {
 			.tv_sec = tv_sec,
-			.tv_nsec = (uint64_t)NSEC_PER_SEC * syncclock / syncclock_Hz,
+			.tv_nsec = 0,
 		},
 		.syncclock = syncclock,
 	};
@@ -68,12 +67,10 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 	k_poll_signal_init(&ss);
 	sys_notify_init_signal(&notify, &ss);
 
-
 	rc = maxim_ds3231_set(rtc, &sp, &notify);
 
-	/* Wait for the set to complete */
+	/* Wait for the set to complete. It should never take more than one second */
 	rc = k_poll(&sevt, 1, K_MSEC(1000));
-
 	rc = maxim_ds3231_get_syncpoint(rtc, &sp);
 	LOG_DBG("wrote sync %d: %u %u at %u", rc,
 	       (uint32_t)sp.rtc.tv_sec, (uint32_t)sp.rtc.tv_nsec,
@@ -116,7 +113,20 @@ static int ds3231_rtc_initilize(const struct device *dev) {
 	const struct device * rtc = device_get_binding(CALENDAR_DEV_LABEL);
 	((struct ds3231_config *)dev->config)->rtc_dev = rtc;
 	if (rtc){
-		return 0;
+		
+		int rc = maxim_ds3231_stat_update(rtc, 0, MAXIM_DS3231_REG_STAT_OSF);
+
+		if (rc >= 0) {
+			LOG_DBG("DS3231 has%s experienced an oscillator fault",
+				(rc & MAXIM_DS3231_REG_STAT_OSF) ? "" : " not");
+			if (rc & MAXIM_DS3231_REG_STAT_OSF){
+				return rc;
+			}
+			return 0;
+		} else {
+			LOG_DBG("DS3231 stat fetch failed: %d", rc);
+		}
+		return rc;
 	}
 	return -ENODEV;
 }
