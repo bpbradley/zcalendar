@@ -58,16 +58,6 @@ using the included device tree bindings
 };
 ```
 
-Or by using a chosen node
-
-```dts
-/ {
-  chosen{
-    zcal,rtc = &calendar_rtc;
-  }
-}
-```
-
 The STM32 implementation is independent of the counter API and so does not need a handle to that device to work.
 As a result, it does not need any device tree configuration.
 
@@ -85,7 +75,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: master
+      revision: main
       import:
         path-prefix: rtos
     - name: zcalendar
