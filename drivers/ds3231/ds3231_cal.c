@@ -18,12 +18,6 @@
 
 #define DT_DRV_COMPAT calendar
 
-#if DT_HAS_CHOSEN(zcal_rtc)
-#define CALENDAR_DEV_LABEL DT_LABEL(DT_CHOSEN(zcal_rtc))
-#else
-#define CALENDAR_DEV_LABEL DT_PROP_BY_PHANDLE(DT_PATH(calendar), rtc, label)
-#endif
-
 LOG_MODULE_REGISTER(calendar, CONFIG_CALENDAR_LOG_LEVEL);
 
 struct ds3231_config{
@@ -45,9 +39,6 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 	int rc = 0;
 	const struct ds3231_config * cfg = dev->config;
 	const struct device * rtc = cfg->rtc_dev;
-	if (!rtc){
-		return -ENODEV;
-	}
 	uint32_t syncclock = maxim_ds3231_read_syncclock(rtc);
 	time_t tv_sec = mktime(tm);
 	struct maxim_ds3231_syncpoint sp = {
@@ -57,7 +48,6 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 		},
 		.syncclock = syncclock,
 	};
-
 	struct k_poll_signal ss;
 	struct sys_notify notify;
 	struct k_poll_event sevt = K_POLL_EVENT_INITIALIZER(K_POLL_TYPE_SIGNAL,
@@ -91,9 +81,6 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 static int ds3231_calendar_gettime(const struct device * dev, struct tm * tm) {
 	const struct ds3231_config * cfg = dev->config;
 	const struct device * rtc = cfg->rtc_dev;
-	if (!rtc){
-		return -ENODEV;
-	}
 	uint32_t now = 0;
 	(void)counter_get_value(rtc, &now);
 	struct tm tv;
@@ -110,25 +97,20 @@ static int ds3231_calendar_gettime(const struct device * dev, struct tm * tm) {
  * @retval 0
  */
 static int ds3231_rtc_initilize(const struct device *dev) {
-	const struct device * rtc = device_get_binding(CALENDAR_DEV_LABEL);
-	((struct ds3231_config *)dev->config)->rtc_dev = rtc;
-	if (rtc){
-		
-		int rc = maxim_ds3231_stat_update(rtc, 0, MAXIM_DS3231_REG_STAT_OSF);
-
-		if (rc >= 0) {
-			LOG_DBG("DS3231 has%s experienced an oscillator fault",
-				(rc & MAXIM_DS3231_REG_STAT_OSF) ? "" : " not");
-			if (rc & MAXIM_DS3231_REG_STAT_OSF){
-				return rc;
-			}
-			return 0;
-		} else {
-			LOG_DBG("DS3231 stat fetch failed: %d", rc);
+	const struct ds3231_config * cfg = dev->config;
+	const struct device * rtc = cfg->rtc_dev;
+	int rc = maxim_ds3231_stat_update(rtc, 0, MAXIM_DS3231_REG_STAT_OSF);
+	if (rc >= 0) {
+		LOG_DBG("DS3231 has%s experienced an oscillator fault",
+			(rc & MAXIM_DS3231_REG_STAT_OSF) ? "" : " not");
+		if (rc & MAXIM_DS3231_REG_STAT_OSF){
+			return rc;
 		}
-		return rc;
+		return 0;
+	} else {
+		LOG_DBG("DS3231 stat fetch failed: %d", rc);
 	}
-	return -ENODEV;
+	return rc;
 }
 
 static const struct calendar_driver_api ds3231_calendar_api = {
@@ -136,7 +118,9 @@ static const struct calendar_driver_api ds3231_calendar_api = {
 	.gettime = ds3231_calendar_gettime,
 };
 
-struct ds3231_config ds3231_config = {NULL};
+struct ds3231_config ds3231_config = {
+	.rtc_dev = DEVICE_DT_GET(DT_INST_PHANDLE(0, rtc))
+};
 
 DEVICE_DT_INST_DEFINE(0, ds3231_rtc_initilize, NULL,
 	NULL, &ds3231_config,
