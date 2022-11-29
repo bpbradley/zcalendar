@@ -15,6 +15,7 @@
 #include <zcal/calendar.h>
 #include <logging/log.h>
 #include <drivers/rtc/maxim_ds3231.h>
+#include <sys/timeutil.h>
 
 #define DT_DRV_COMPAT calendar
 
@@ -50,7 +51,7 @@ static int ds3231_calendar_settime(const struct device * dev, struct tm * tm) {
 	}
 	uint32_t syncclock_Hz = maxim_ds3231_syncclock_frequency(rtc);
 	uint32_t syncclock = maxim_ds3231_read_syncclock(rtc);
-	time_t tv_sec = mktime(tm);
+	time_t tv_sec = timeutil_timegm(tm);
 	struct maxim_ds3231_syncpoint sp = {
 		.rtc = {
 			.tv_sec = tv_sec,
