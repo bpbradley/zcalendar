@@ -6,3 +6,6 @@ menuconfig RV8263_RTC_CALENDAR
 	select I2C
 	help
 	  Enable driver for Micro Crystal RV8263 rtc time api
+
+config RESET_BACKUP_DOMAIN
+	bool "Optionally force a reset of the backup domain on init"

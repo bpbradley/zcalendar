@@ -20,8 +20,11 @@
 
 LOG_MODULE_REGISTER(calendar, CONFIG_CALENDAR_LOG_LEVEL);
 
-#define RV8263_BIAS_YEAR 2000
-#define TM_BIAS_YEAR	1900
+#define member_size(type, member) sizeof(((type *)0)->member)
+
+#define RV8263_BIAS_YEAR 	2000
+#define TM_BIAS_YEAR		1900
+#define SRAM_MAGIC			(0xCA)
 
 typedef struct  __attribute__ ((packed)) {
 	uint8_t seconds;    	// 0x04
@@ -48,22 +51,53 @@ typedef struct  __attribute__ ((packed)) {
 	uint8_t timer_mode;		// 0x11
 } rv8263_regmap_t;
 
-struct rv8263_data{
-	rv8263_regmap_t registers;
-};
-
 struct rv8263_config{
 	const struct device * bus;
 	uint8_t addr;
 };
 
-static int rv8263_convert_to_time(struct tm * dst, const rv8263_time_t * src){
+
+/**
+ * @brief Filter `rv8263_time_t` to eliminate possibility of garbage data,
+ * since some bits are unused / possibly undefined in the rtc registers.
+ * 
+ * @param time : pointer to `rv8263_time_t`, data directly from rtc registers
+ * @retval 0 on success
+ * @retval -ENODEV is `time` is NULL
+ */
+static int rv8263_filter_time(rv8263_time_t * time){
+	if (time == NULL){
+		return -ENODEV;
+	}
+	time->seconds &= 0x7f;
+	time->minutes &= 0x7f;
+	time->hours &= 0x7f;
+	time->date &= 0x3f;
+	time->weekday &= 0x03;
+	time->month &= 0x1f;
+	time->year &= 0xff;
+	return 0;
+}
+
+/**
+ * @brief Convert `rv8263_time_t` to `struct tm`
+ * 
+ * @param dst : `struct tm` which will be filled according to `src` contents
+ * @param src : `rv8263_time_t` which will define `src`
+ * @retval 0 on success
+ * @retval -ENODEV is dst or src are NULL
+ */
+static int rv8263_convert_to_time(struct tm * dst, rv8263_time_t * src){
 	if (dst == NULL || src == NULL){
 		return -ENODEV;
 	}
+
+	/* Filter any unused / undefined data from src */
+	rv8263_filter_time(src);
+	
 	/* tm_sec can technically be 60 or 61 to account for leap seconds on some systems, rv8263 wont consider this*/
 	dst->tm_sec = bcd2bin(src->seconds);
-	dst->tm_min = src->minutes;
+	dst->tm_min = bcd2bin(src->minutes);
 	dst->tm_hour = bcd2bin(src->hours);
 	dst->tm_mday = bcd2bin(src->date);
 	dst->tm_wday = bcd2bin(src->weekday);
@@ -78,24 +112,14 @@ static int rv8263_convert_to_time(struct tm * dst, const rv8263_time_t * src){
 	return 0;
 }
 
-static int rv8263_filter_time(rv8263_time_t * time){
-	/**
-	 * @note TODO: change register map to bitfield to avoid needing this.
-	 * 
-	 */
-	if (time == NULL){
-		return -ENODEV;
-	}
-	time->seconds &= 0x7f;
-	time->minutes &= 0x7f;
-	time->hours &= 0x7f;
-	time->date &= 0x3f;
-	time->weekday &= 0x03;
-	time->month &= 0x1f;
-	time->year &= 0xff;
-	return 0;
-}
-
+/**
+ * @brief Convert `struct tm` to `rv8263_time_t`
+ * 
+ * @param dst : `rv8263_time_t tm` which will be filled according to `src` contents
+ * @param src : `struct tm` which will define `src`
+ * @retval 0 on success
+ * @retval -ENODEV is dst or src are NULL
+ */
 static int rv8263_convert_from_time(rv8263_time_t * dst, const struct tm * src){
 	if (dst == NULL || src == NULL){
 		return -ENODEV;
@@ -137,7 +161,7 @@ static int rv8263_calendar_settime(const struct device * dev, struct tm * tm) {
 	rv8263_time_t time;
 	int rc = rv8263_convert_from_time(&time, tm);
 	if (rc == 0){
-		rv8263_write(dev, offsetof(rv8263_regmap_t, calendar), (uint8_t *)&time, sizeof(rv8263_time_t));
+		rc = rv8263_write(dev, offsetof(rv8263_regmap_t, calendar), (uint8_t *)&time, sizeof(rv8263_time_t));
 	}
 	return rc;
 }
@@ -154,11 +178,36 @@ static int rv8263_calendar_settime(const struct device * dev, struct tm * tm) {
 static int rv8263_calendar_gettime(const struct device * dev, struct tm * tm) {
 	rv8263_time_t time = {0};
 	int rc = rv8263_read(dev, offsetof(rv8263_regmap_t, calendar), (uint8_t *)&time, sizeof(rv8263_time_t));
-	rv8263_filter_time(&time);
 	if (rc == 0){
 		rc = rv8263_convert_to_time(tm, &time);
 	}
 	return rc;
+}
+
+/**
+ * @brief Helper function to check the SRAM contents.
+ * Useful to check if the RTC lost power, so that it can
+ * be restored to a known state
+ * 
+ * @param dev : pointer to device
+ * @param sram : pointer to byte where sram contents will be stored/
+ * @retval 0 on success
+ * @retval -errno otherwise
+ */
+static int get_sram_contents(const struct device * dev, uint8_t * sram){
+	return rv8263_read(dev, offsetof(rv8263_regmap_t, ram), (uint8_t *)sram, member_size(rv8263_regmap_t, ram));
+}
+
+/**
+ * @brief Helper function to set the SRAM contents directly on the RTC
+ * 
+ * @param dev : pointer to device
+ * @param data : data to be stored in SRAM
+ * @retval 0 on succes
+ * @retval -errno otherwise
+ */
+static int set_sram_contents(const struct device * dev, uint8_t data){
+	return rv8263_write(dev, offsetof(rv8263_regmap_t, ram), (uint8_t *)&data, member_size(rv8263_regmap_t, ram));
 }
 
 /**
@@ -168,12 +217,32 @@ static int rv8263_calendar_gettime(const struct device * dev, struct tm * tm) {
  * @retval 0
  */
 static int rv8263_rtc_initilize(const struct device *dev) {
-	/**
-	 * @note TODO: Is there a need to do anything here? 
-	 * Set defaults? Soft reset? Anything in RAM?
-	 * 
-	 */
-	return 0;
+		const struct rv8263_config *cfg = dev->config;
+		if (!device_is_ready(cfg->bus)){
+			LOG_ERR("i2c bus for rv8263 calendar is not ready");
+			return -EINVAL;
+		}
+		/* Only wipe the backup domain if:
+		*
+		* 1. It was requested or
+		* 2. it hasn't been initialized.
+		* 
+		* We can check if it was already initialized by seeing if the magic word
+		* is present in the first sram register
+		*/
+		uint8_t sram = 0;
+		int rc = get_sram_contents(dev, &sram);
+		if(IS_ENABLED(CONFIG_RESET_BACKUP_DOMAIN) ||  (rc == 0 && sram != SRAM_MAGIC))
+		{
+			LOG_DBG("Reseting backup domain. SRAM contents=0x%02x\n", sram);
+			struct tm * t_init;
+			struct tm tv;
+			const time_t epoch = CONFIG_CALENDAR_INIT_TIME_UNIX_TIMESTAMP;
+            t_init = gmtime_r(&epoch, &tv);
+			rc = rv8263_calendar_settime(dev, t_init);
+			set_sram_contents(dev, SRAM_MAGIC);
+		}
+	return rc;
 }
 
 static const struct calendar_driver_api rv8263_calendar_api = {
@@ -186,10 +255,8 @@ struct rv8263_config rv8263_config = {
 	.addr = DT_INST_REG_ADDR(0),
 };
 
-struct rv8263_data rv8263_data = {{0}};
-
 DEVICE_DT_INST_DEFINE(0, rv8263_rtc_initilize, NULL,
-	&rv8263_data, &rv8263_config,
+	NULL, &rv8263_config,
 	POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY,
 	&rv8263_calendar_api
 ); 
