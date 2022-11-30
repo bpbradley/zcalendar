@@ -22,4 +22,5 @@ config CALENDAR_INIT_TIME_UNIX_TIMESTAMP
 
 rsource "Kconfig.stm32"
 rsource "Kconfig.ds3231"
+rsource "Kconfig.rv8263"
 endif
