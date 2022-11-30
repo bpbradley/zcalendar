@@ -148,7 +148,7 @@ int main(){
 
     /* Get the device handle */
     const struct device * calendar = \
-        device_get_binding(DT_LABEL(DT_INST(0, calendar)));
+        device_get_binding(DT_LABEL(DT_NODELABEL(calendar_rtc)));
 
     if (calendar){
             /* Set the calendar time by epoch */
