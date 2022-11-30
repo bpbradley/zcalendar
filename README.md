@@ -105,7 +105,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: master
+      revision: main
       import:
         path-prefix: rtos
     - name: zcalendar
