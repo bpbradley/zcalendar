@@ -10,12 +10,12 @@
  * 
  */
 
-#include <zephyr.h>
-#include <device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
 #include <zcal/calendar.h>
-#include <logging/log.h>
-#include <drivers/rtc/maxim_ds3231.h>
-#include <sys/timeutil.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/drivers/rtc/maxim_ds3231.h>
+#include <zephyr/sys/timeutil.h>
 
 #define DT_DRV_COMPAT calendar
 

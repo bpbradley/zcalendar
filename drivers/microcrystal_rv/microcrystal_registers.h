@@ -12,8 +12,8 @@
 #ifndef ZEPHYR_EXTRAS_INCLUDE_MICROCRYSTAL_REGISTERS_H_
 #define ZEPHYR_EXTRAS_INCLUDE_MICROCRYSTAL_REGISTERS_H_
 
-#include <zephyr.h>
-#include <device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
 
 #if MICROCRYSTAL_RTC_RV8263
 typedef struct  __attribute__ ((packed)) {

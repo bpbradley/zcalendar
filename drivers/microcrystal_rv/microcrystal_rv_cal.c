@@ -10,11 +10,11 @@
  * 
  */
 
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/i2c.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
 #include <zcal/calendar.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 #include "microcrystal_registers.h"
 
 #define DT_DRV_COMPAT microcrystal_rv_calendar
@@ -32,7 +32,7 @@ struct rv_config{
 	uint8_t addr;
 };
 
-/**
+/*
  * @brief Filter `rv_time_t` to eliminate possibility of garbage data,
  * since some bits are unused / possibly undefined in the rtc registers.
  * 

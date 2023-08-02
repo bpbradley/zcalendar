@@ -11,8 +11,8 @@
 
 #define DT_DRV_COMPAT st_stm32_rtc
 
-#include <zephyr.h>
-#include <device.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
 #include <stm32f4xx_ll_rtc.h>
 #include <stm32f4xx_ll_pwr.h>
 #include <stm32f4xx_ll_rcc.h>

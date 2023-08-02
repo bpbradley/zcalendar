@@ -15,7 +15,7 @@
 #include <time.h>
 #include <zephyr/types.h>
 #include <stddef.h>
-#include <device.h>
+#include <zephyr/device.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -76,7 +76,6 @@ static inline int z_impl_calendar_settime(const struct device *dev, struct tm *t
 /**
  * @}
  */
-
 #include <syscalls/calendar.h>
 
 #endif
