@@ -1,5 +1,5 @@
 /**
- * @file rv8263_cal.c
+ * @file microcrystal_rv_cal.c
  * @author Brian Bradley (brian.bradley.p@gmail.com)
  * @brief 
  * @date 2022-11-22
@@ -15,57 +15,32 @@
 #include <drivers/i2c.h>
 #include <zcal/calendar.h>
 #include <logging/log.h>
+#include "microcrystal_registers.h"
 
-#define DT_DRV_COMPAT microcrystal_rv8263_calendar
+#define DT_DRV_COMPAT microcrystal_rv_calendar
 
 LOG_MODULE_REGISTER(calendar, CONFIG_CALENDAR_LOG_LEVEL);
 
 #define member_size(type, member) sizeof(((type *)0)->member)
 
-#define RV8263_BIAS_YEAR 	2000
+#define RV_BIAS_YEAR 		2000
 #define TM_BIAS_YEAR		1900
 #define SRAM_MAGIC			(0xCA)
 
-typedef struct  __attribute__ ((packed)) {
-	uint8_t seconds;    	// 0x04
-	uint8_t minutes;		// 0x05
-	uint8_t hours;			// 0x06
-	uint8_t date;			// 0x07
-	uint8_t weekday;		// 0x08
-	uint8_t month;			// 0x09
-	uint8_t year;			// 0x0A
-} rv8263_time_t;
-
-typedef struct  __attribute__ ((packed)) {
-	uint8_t	control1;		// 0x00
-	uint8_t	control2;		// 0x01
-	uint8_t	offset;			// 0x02
-	uint8_t ram;			// 0x03
-	rv8263_time_t calendar; //0x04 - 0x0A	
-	uint8_t seconds_alarm;	// 0x0B
-	uint8_t minutes_alarm;	// 0x0C
-	uint8_t hours_alarm;	// 0x0D
-	uint8_t date_alarm;		// 0x0E
-	uint8_t weekday_alarm;	// 0x0F
-	uint8_t timer_value;	// 0x10
-	uint8_t timer_mode;		// 0x11
-} rv8263_regmap_t;
-
-struct rv8263_config{
+struct rv_config{
 	const struct device * bus;
 	uint8_t addr;
 };
 
-
 /**
- * @brief Filter `rv8263_time_t` to eliminate possibility of garbage data,
+ * @brief Filter `rv_time_t` to eliminate possibility of garbage data,
  * since some bits are unused / possibly undefined in the rtc registers.
  * 
- * @param time : pointer to `rv8263_time_t`, data directly from rtc registers
+ * @param time : pointer to `rv_time_t`, data directly from rtc registers
  * @retval 0 on success
  * @retval -ENODEV is `time` is NULL
  */
-static int rv8263_filter_time(rv8263_time_t * time){
+static int rv_filter_time(rv_time_t * time){
 	if (time == NULL){
 		return -ENODEV;
 	}
@@ -80,72 +55,72 @@ static int rv8263_filter_time(rv8263_time_t * time){
 }
 
 /**
- * @brief Convert `rv8263_time_t` to `struct tm`
+ * @brief Convert `rv_time_t` to `struct tm`
  * 
  * @param dst : `struct tm` which will be filled according to `src` contents
- * @param src : `rv8263_time_t` which will define `src`
+ * @param src : `rv_time_t` which will define `src`
  * @retval 0 on success
  * @retval -ENODEV is dst or src are NULL
  */
-static int rv8263_convert_to_time(struct tm * dst, rv8263_time_t * src){
+static int rv_convert_to_time(struct tm * dst, rv_time_t * src){
 	if (dst == NULL || src == NULL){
 		return -ENODEV;
 	}
 
 	/* Filter any unused / undefined data from src */
-	rv8263_filter_time(src);
+	rv_filter_time(src);
 	
-	/* tm_sec can technically be 60 or 61 to account for leap seconds on some systems, rv8263 wont consider this*/
+	/* tm_sec can technically be 60 or 61 to account for leap seconds on some systems, rv wont consider this*/
 	dst->tm_sec = bcd2bin(src->seconds);
 	dst->tm_min = bcd2bin(src->minutes);
 	dst->tm_hour = bcd2bin(src->hours);
 	dst->tm_mday = bcd2bin(src->date);
 	dst->tm_wday = bcd2bin(src->weekday);
-	/* tm uses months indexed 0-11, rv8263 uses months indexed 1-12 */
+	/* tm uses months indexed 0-11, rv uses months indexed 1-12 */
 	dst->tm_mon = bcd2bin(src->month) - 1;
-	/* tm biases months to 1900, rv8263 biases months to 2000 */
-	dst->tm_year = bcd2bin(src->year) + RV8263_BIAS_YEAR - TM_BIAS_YEAR;
+	/* tm biases months to 1900, rv biases months to 2000 */
+	dst->tm_year = bcd2bin(src->year) + RV_BIAS_YEAR - TM_BIAS_YEAR;
 	
-	/* DST is not handled rv8263. -1 indicates unknown support so it should be ignored*/
+	/* DST is not handled. -1 indicates unknown support so it should be ignored*/
 	dst->tm_isdst = -1;
 
 	return 0;
 }
 
 /**
- * @brief Convert `struct tm` to `rv8263_time_t`
+ * @brief Convert `struct tm` to `rv_time_t`
  * 
- * @param dst : `rv8263_time_t tm` which will be filled according to `src` contents
+ * @param dst : `rv_time_t tm` which will be filled according to `src` contents
  * @param src : `struct tm` which will define `src`
  * @retval 0 on success
  * @retval -ENODEV is dst or src are NULL
  */
-static int rv8263_convert_from_time(rv8263_time_t * dst, const struct tm * src){
+static int rv_convert_from_time(rv_time_t * dst, const struct tm * src){
 	if (dst == NULL || src == NULL){
 		return -ENODEV;
 	}
-	/* tm_sec can technically be 60 or 61 to account for leap seconds on some systems. Clamp it to 59 for rv8263*/
+	/* tm_sec can technically be 60 or 61 to account for leap seconds on some systems. Clamp it to 59 for rv*/
 	dst->seconds = bin2bcd(MIN(src->tm_sec, 59)); 
 	dst->minutes = bin2bcd(src->tm_min);
 	dst->hours = bin2bcd(src->tm_hour);
 	dst->date = bin2bcd(src->tm_mday);
 	dst->weekday = bin2bcd(src->tm_wday);
-	/* tm uses months indexed 0-11, rv8263 uses months indexed 1-12 */
+	/* tm uses months indexed 0-11, rv uses months indexed 1-12 */
 	dst->month = bin2bcd(src->tm_mon + 1);
-	/* tm uses months to year 1900, rv8263 biases months to 2000 */
-	dst->year = bin2bcd(MAX(0, src->tm_year + TM_BIAS_YEAR - RV8263_BIAS_YEAR));
+	/* tm uses months to year 1900, rv biases months to 2000 */
+	dst->year = bin2bcd(MAX(0, src->tm_year + TM_BIAS_YEAR - RV_BIAS_YEAR));
 	return 0;
 }
 
-int rv8263_read(const struct device *dev, uint8_t reg, uint8_t *data, uint8_t len)
+int rv_read(const struct device *dev, uint8_t reg, uint8_t *data, uint8_t len)
 {
-	const struct rv8263_config *cfg = dev->config;
+	const struct rv_config *cfg = dev->config;
 	return i2c_burst_read(cfg->bus, cfg->addr, reg, data, len);
 }
 
-int rv8263_write(const struct device *dev, uint8_t reg, uint8_t *data, uint8_t len)
+int rv_write(const struct device *dev, uint8_t reg, uint8_t *data, uint8_t len)
 {
-	const struct rv8263_config *cfg = dev->config;
+	const struct rv_config *cfg = dev->config;
 	return i2c_burst_write(cfg->bus, cfg->addr, reg, data, len);
 }
 
@@ -157,11 +132,11 @@ int rv8263_write(const struct device *dev, uint8_t reg, uint8_t *data, uint8_t l
  * @retval 0 on success
  * @retval -errno on failure
  */
-static int rv8263_calendar_settime(const struct device * dev, struct tm * tm) {
-	rv8263_time_t time;
-	int rc = rv8263_convert_from_time(&time, tm);
+static int rv_calendar_settime(const struct device * dev, struct tm * tm) {
+	rv_time_t time;
+	int rc = rv_convert_from_time(&time, tm);
 	if (rc == 0){
-		rc = rv8263_write(dev, offsetof(rv8263_regmap_t, calendar), (uint8_t *)&time, sizeof(rv8263_time_t));
+		rc = rv_write(dev, offsetof(rv_regmap_t, calendar), (uint8_t *)&time, sizeof(rv_time_t));
 	}
 	return rc;
 }
@@ -175,11 +150,11 @@ static int rv8263_calendar_settime(const struct device * dev, struct tm * tm) {
  * current calendar date
  * @retval 0
  */
-static int rv8263_calendar_gettime(const struct device * dev, struct tm * tm) {
-	rv8263_time_t time = {0};
-	int rc = rv8263_read(dev, offsetof(rv8263_regmap_t, calendar), (uint8_t *)&time, sizeof(rv8263_time_t));
+static int rv_calendar_gettime(const struct device * dev, struct tm * tm) {
+	rv_time_t time = {0};
+	int rc = rv_read(dev, offsetof(rv_regmap_t, calendar), (uint8_t *)&time, sizeof(rv_time_t));
 	if (rc == 0){
-		rc = rv8263_convert_to_time(tm, &time);
+		rc = rv_convert_to_time(tm, &time);
 	}
 	return rc;
 }
@@ -195,7 +170,7 @@ static int rv8263_calendar_gettime(const struct device * dev, struct tm * tm) {
  * @retval -errno otherwise
  */
 static int get_sram_contents(const struct device * dev, uint8_t * sram){
-	return rv8263_read(dev, offsetof(rv8263_regmap_t, ram), (uint8_t *)sram, member_size(rv8263_regmap_t, ram));
+	return rv_read(dev, offsetof(rv_regmap_t, magic), (uint8_t *)sram, member_size(rv_regmap_t, magic));
 }
 
 /**
@@ -207,7 +182,7 @@ static int get_sram_contents(const struct device * dev, uint8_t * sram){
  * @retval -errno otherwise
  */
 static int set_sram_contents(const struct device * dev, uint8_t data){
-	return rv8263_write(dev, offsetof(rv8263_regmap_t, ram), (uint8_t *)&data, member_size(rv8263_regmap_t, ram));
+	return rv_write(dev, offsetof(rv_regmap_t, magic), (uint8_t *)&data, member_size(rv_regmap_t, magic));
 }
 
 /**
@@ -216,10 +191,10 @@ static int set_sram_contents(const struct device * dev, uint8_t data){
  * @param dev Pointer to the device structure for the driver instance.
  * @retval 0
  */
-static int rv8263_rtc_initilize(const struct device *dev) {
-		const struct rv8263_config *cfg = dev->config;
+static int rv_rtc_initilize(const struct device *dev) {
+		const struct rv_config *cfg = dev->config;
 		if (!device_is_ready(cfg->bus)){
-			LOG_ERR("i2c bus for rv8263 calendar is not ready");
+			LOG_ERR("i2c bus for rv calendar is not ready");
 			return -EINVAL;
 		}
 		/* Only wipe the backup domain if:
@@ -239,24 +214,24 @@ static int rv8263_rtc_initilize(const struct device *dev) {
 			struct tm tv;
 			const time_t epoch = CONFIG_CALENDAR_INIT_TIME_UNIX_TIMESTAMP;
             t_init = gmtime_r(&epoch, &tv);
-			rc = rv8263_calendar_settime(dev, t_init);
+			rc = rv_calendar_settime(dev, t_init);
 			set_sram_contents(dev, SRAM_MAGIC);
 		}
 	return rc;
 }
 
-static const struct calendar_driver_api rv8263_calendar_api = {
-	.settime = rv8263_calendar_settime,
-	.gettime = rv8263_calendar_gettime,
+static const struct calendar_driver_api rv_calendar_api = {
+	.settime = rv_calendar_settime,
+	.gettime = rv_calendar_gettime,
 };
 
-struct rv8263_config rv8263_config = {
+struct rv_config rv_config = {
 	.bus = DEVICE_DT_GET(DT_INST_BUS(0)),
 	.addr = DT_INST_REG_ADDR(0),
 };
 
-DEVICE_DT_INST_DEFINE(0, rv8263_rtc_initilize, NULL,
-	NULL, &rv8263_config,
+DEVICE_DT_INST_DEFINE(0, rv_rtc_initilize, NULL,
+	NULL, &rv_config,
 	POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY,
-	&rv8263_calendar_api
+	&rv_calendar_api
 ); 

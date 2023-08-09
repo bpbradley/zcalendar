@@ -1,0 +1,22 @@
+# Copyright (c) 2022 Brian Bradley
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig MICROCRYSTAL_RV_RTC_CALENDAR
+	bool "Microcrystal rv-xxxx based calendar API implementation"
+	select I2C
+	help
+	  Enable driver for a Micro Crystal rtc time api
+
+config RESET_BACKUP_DOMAIN
+	bool "Optionally force a reset of the backup domain on init"
+
+choice
+	prompt "Microcrystal RTC Variant"
+	default MICROCRYSTAL_RTC_RV8263
+	
+config MICROCRYSTAL_RTC_RV8263
+	bool "Select the RV8263"
+
+config MICROCRYSTAL_RTC_RV3032
+	bool "Select the RV3032"
+endchoice

@@ -5,7 +5,7 @@
 #
 description: Micro Crystal I2C RTC Calendar
 
-compatible: "microcrystal,rv8263-calendar"
+compatible: "microcrystal,rv-calendar"
 
 include: i2c-device.yaml
 
