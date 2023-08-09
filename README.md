@@ -12,7 +12,7 @@ Calendar API for Zephyr RTOS.
 
 * STM32 RTC
 * Maxim DS3231
-* Micro Crystal RV8263
+* Micro Crystal RV8263, RV3032
 
 ## Configuration
 
