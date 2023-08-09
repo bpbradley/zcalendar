@@ -73,14 +73,14 @@ Or by using a chosen node
 }
 ```
 
-#### Micro Crystal RV8263
+#### Micro Crystal RV
 
-The Micro Crystal RV8263 is independent of all zephyr drivers and APIs, and so includes its own device tree binding.
+The Micro Crystal RV is independent of all zephyr drivers and APIs, and so includes its own device tree binding.
 
 ```dts
 &i2c0 {
-  calendar_rtc: rv8263@51 {
-    compatible = "microcrystal,rv8263-calendar";
+  calendar_rtc: rv@51 {
+    compatible = "microcrystal,rv-calendar";
     reg = <0x51>;
     label = "RV8263";
   };
@@ -130,8 +130,8 @@ CONFIG_RV8263_RTC_CALENDAR=y
 
 ```dts
 &i2c0 {
-  calendar_rtc: rv8263@51 {
-    compatible = "microcrystal,rv8263-calendar";
+  calendar_rtc: rv@51 {
+    compatible = "microcrystal,rv-calendar";
     reg = <0x51>;
     label = "RV8263";
   };
