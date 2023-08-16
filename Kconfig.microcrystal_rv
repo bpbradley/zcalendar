@@ -20,3 +20,88 @@ config MICROCRYSTAL_RTC_RV8263
 config MICROCRYSTAL_RTC_RV3032
 	bool "Select the RV3032"
 endchoice
+
+config MICROCRYSTAL_RTC_USE_SRAM_MAGIC
+	bool "Optionally use a magic word in SRAM to indicate a first program"
+	default y if MICROCRYSTAL_RTC_RV8263
+	default n if MICROCRYSTAL_RTC_RV3032
+
+if MICROCRYSTAL_RTC_RV3032
+
+choice
+	prompt "rv3032 switchover behavior"
+	default RV3032_SWITCHOVER_DISABLED
+
+config RV3032_SWITCHOVER_DISABLED
+	bool "Switchover Disabled mode"
+
+config RV3032_DIRECT_SWITCHING_MODE
+	bool "Direct Switching Mode (DSM)"
+
+config RV3032_LEVEL_SWITCHING_MODE
+	bool "Level Switching Mode (LSM)"
+endchoice
+
+choice
+	prompt "rv3032 trickle charge behavior"
+	default RV3032_TCM_DISABLED
+config RV3032_TCM_DISABLED
+	bool "Trickle Charge disabled"
+config RV3032_TCM_1V75
+	bool "1.75V trickle charging"
+config RV3032_TCM_3V0
+	bool "3.0V trickle charging"
+config RV3032_TCM_4V5
+	bool "4.5V trickle charging"
+endchoice
+
+
+choice
+	prompt "rv3032 trickle charge series resistance"
+	default RV3032_TCR_0K6_OHM
+config RV3032_TCR_0K6_OHM
+	bool "600 Ohm trickle charger series resistance"
+config RV3032_TCR_2K0_OHM
+	bool "2 kOhm trickle charger series resistance"
+config RV3032_TCR_7K0_OHM
+	bool "7 kOhm trickle charger series resistance"
+config RV3032_TCR_12K0_OHM
+	bool "12 kOhm trickle charger series resistance"
+endchoice
+
+choice
+	prompt "rv3032 clockout"
+	default RV3032_CLKOUT_ENABLED
+
+config RV3032_CLKOUT_ENABLED
+	bool "Clock output enabled"
+
+config RV3032_CLKOUT_DISABLED
+	bool "Clock output disabled"
+endchoice
+
+config RV3032_SWITCHOVER_MODE_MASK
+	hex
+	default 0x00 if RV3032_SWITCHOVER_DISABLED
+	default 0x10 if RV3032_DIRECT_SWITCHING_MODE
+	default 0x20 if RV3032_LEVEL_SWITCHING_MODE
+
+config RV3032_TCM_MASK
+	hex
+	default 0x00 if RV3032_TCM_DISABLED
+	default 0x01 if RV3032_TCM_1V75
+	default 0x02 if RV3032_TCM_3V0
+	default 0x03 if RV3032_TCM_4V5
+
+config RV3032_CLKOUT_ENABLE_MASK
+	hex
+	default 0x00 if RV3032_CLKOUT_ENABLED
+	default 0x40 if RV3032_CLKOUT_DISABLED
+
+config RV3032_TCR_MASK
+	hex
+	default 0x00 if RV3032_TCR_0K6_OHM
+	default 0x04 if RV3032_TCR_2K0_OHM
+	default 0x08 if RV3032_TCR_7K0_OHM
+	default 0x0C if RV3032_TCR_12K0_OHM
+endif
