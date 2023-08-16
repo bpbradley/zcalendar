@@ -16,6 +16,9 @@
 #include <zcal/calendar.h>
 #include <zephyr/logging/log.h>
 #include "microcrystal_registers.h"
+#if CONFIG_MICROCRYSTAL_RTC_RV3032
+#include "rv3032.h"
+#endif
 
 #define DT_DRV_COMPAT microcrystal_rv_calendar
 
@@ -158,7 +161,7 @@ static int rv_calendar_gettime(const struct device * dev, struct tm * tm) {
 	}
 	return rc;
 }
-
+#if CONFIG_MICROCRYSTAL_RTC_USE_SRAM_MAGIC
 /**
  * @brief Helper function to check the SRAM contents.
  * Useful to check if the RTC lost power, so that it can
@@ -184,7 +187,7 @@ static int get_sram_contents(const struct device * dev, uint8_t * sram){
 static int set_sram_contents(const struct device * dev, uint8_t data){
 	return rv_write(dev, offsetof(rv_regmap_t, magic), (uint8_t *)&data, member_size(rv_regmap_t, magic));
 }
-
+#endif
 /**
  * @brief Initialize calendar API.
  * 
@@ -193,10 +196,19 @@ static int set_sram_contents(const struct device * dev, uint8_t data){
  */
 static int rv_rtc_initilize(const struct device *dev) {
 		const struct rv_config *cfg = dev->config;
+		int rc = 0;
+		
 		if (!device_is_ready(cfg->bus)){
 			LOG_ERR("i2c bus for rv calendar is not ready");
 			return -EINVAL;
 		}
+
+		#if CONFIG_MICROCRYSTAL_RTC_RV3032
+			rv3032_init(dev);
+		#endif
+
+		#if CONFIG_MICROCRYSTAL_RTC_USE_SRAM_MAGIC
+
 		/* Only wipe the backup domain if:
 		*
 		* 1. It was requested or
@@ -205,8 +217,9 @@ static int rv_rtc_initilize(const struct device *dev) {
 		* We can check if it was already initialized by seeing if the magic word
 		* is present in the first sram register
 		*/
+
 		uint8_t sram = 0;
-		int rc = get_sram_contents(dev, &sram);
+		rc = get_sram_contents(dev, &sram);
 		if(IS_ENABLED(CONFIG_RESET_BACKUP_DOMAIN) ||  (rc == 0 && sram != SRAM_MAGIC))
 		{
 			LOG_DBG("Reseting backup domain. SRAM contents=0x%02x\n", sram);
@@ -217,6 +230,7 @@ static int rv_rtc_initilize(const struct device *dev) {
 			rc = rv_calendar_settime(dev, t_init);
 			set_sram_contents(dev, SRAM_MAGIC);
 		}
+		#endif
 	return rc;
 }
 

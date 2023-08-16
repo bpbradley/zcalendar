@@ -1,6 +1,6 @@
 /**
  * @file microcrystal_registers.h
- * @author Brian Bradley (bbradley@lionprotects.com)
+ * @author Brian Bradley (brian.bradley.p@gmail.com)
  * @date 2023-08-09
  * 
  * @copyright Copyright (C) 2023 Brian Bradley
