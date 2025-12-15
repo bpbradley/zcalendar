@@ -12,7 +12,7 @@
 #include <zephyr/syscall_handler.h>
 #include <zcal/calendar.h>
 #include <zephyr/kernel.h>
-#include <zephyr/syscall_list.h>
+#include <syscall_list.h>
 
 static inline int z_vrfy_calendar_gettime(const struct device *dev, struct tm * tm) 
 { 

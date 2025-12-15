@@ -15,7 +15,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 
-#if MICROCRYSTAL_RTC_RV8263
+#if CONFIG_MICROCRYSTAL_RTC_RV8263
 typedef struct  __attribute__ ((packed)) {
 	uint8_t seconds;    	// 0x04
 	uint8_t minutes;		// 0x05
@@ -30,7 +30,7 @@ typedef struct  __attribute__ ((packed)) {
 	uint8_t	control1;		// 0x00
 	uint8_t	control2;		// 0x01
 	uint8_t	offset;			// 0x02
-	uint8_t ram;			// 0x03
+	uint8_t magic;			// 0x03
 	rv_time_t calendar; //0x04 - 0x0A	
 	uint8_t seconds_alarm;	// 0x0B
 	uint8_t minutes_alarm;	// 0x0C
